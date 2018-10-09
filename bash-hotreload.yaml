@@ -1,0 +1,59 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: bash-words
+data:
+  bash.txt: |
+    Hello World!
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: bash
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    name: http
+    targetPort: 80
+  selector:
+    app: bash
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: bash
+spec:
+  template:
+    metadata:
+      labels:
+        app: bash
+    spec:
+      containers:
+      - image: bash:4.4.19
+        name: bash
+        ports:
+        - containerPort: 80
+          name: http
+        volumeMounts:
+        - mountPath: /tmp/
+          name: words-volume
+      - image: jimmidyson/configmap-reload:v0.2.2
+        imagePullPolicy: IfNotPresent
+        name: bash-words-reload
+        volumeMounts:
+        - mountPath: /tmp/
+          name: words-volume
+          readOnly: true
+        args:
+        - --volume-dir=/tmp/
+        - --webhook-url=http://127.0.0.1:80/-/reload
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: bash-words
+        name: words-volume
+
